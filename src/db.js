@@ -35,8 +35,14 @@ async function initDb() {
         remaining INTEGER NOT NULL,
         reset_at TIMESTAMPTZ NOT NULL,
         rejection_reason VARCHAR(255),
-        fallback BOOLEAN DEFAULT FALSE
+        fallback BOOLEAN DEFAULT FALSE,
+        ip_address VARCHAR(45)
       );
+    `);
+
+    // Ensure ip_address column exists for backward compatibility in pre-existing DBs
+    await client.query(`
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45);
     `);
 
     // Create index for reporting/analytics queries
@@ -62,10 +68,10 @@ async function initDb() {
  * Log a rate limit check outcome to PostgreSQL.
  * Executes in background asynchronously so it doesn't block the request lifecycle.
  */
-function logAudit(userId, endpoint, allowed, limit, remaining, resetAt, fallback = false, rejectionReason = null) {
+function logAudit(userId, endpoint, allowed, limit, remaining, resetAt, fallback = false, rejectionReason = null, ipAddress = null) {
   const query = `
-    INSERT INTO audit_logs (user_id, endpoint, timestamp, allowed, limit_quota, remaining, reset_at, fallback, rejection_reason)
-    VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8)
+    INSERT INTO audit_logs (user_id, endpoint, timestamp, allowed, limit_quota, remaining, reset_at, fallback, rejection_reason, ip_address)
+    VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9)
   `;
   const values = [
     userId,
@@ -75,7 +81,8 @@ function logAudit(userId, endpoint, allowed, limit, remaining, resetAt, fallback
     remaining,
     new Date(resetAt),
     fallback,
-    rejectionReason
+    rejectionReason,
+    ipAddress
   ];
 
   // Fire-and-forget query with error handling in callback to avoid blocking the Express request loop

@@ -83,7 +83,10 @@ If Redis goes down or gets partitioned, a simple rate limiter would drop client 
 
 ### 1. Check Rate Limit
 * **Endpoint**: `POST /api/v1/check-limit`
-* **Request Header (Optional)**: `X-User-Tier: free | pro | enterprise` (Defaults to `free` unless user ID prefix matches like `pro_user1`)
+* **Request Headers (API Key Mode)**:
+  * `X-API-Key`: `rate_key_7480c171977075c7a3...` (Plain text API Key, hashed via SHA256 on the server to match database records).
+* **Request Headers (Mock Header Mode - Alternative)**:
+  * `X-User-Tier`: `free | pro | enterprise` (Deduce tier directly if no API Key header is supplied).
 * **Request Body**:
 ```json
 {
@@ -107,7 +110,7 @@ RateLimit-Reset: 1719876603000
   "reset_at": 1719876603000
 }
 ```
-* **Response Body (429 Too Many Requests - Rate Limited)**:
+* **Response Body (429 Too Many Requests - Blocked)**:
 ```json
 {
   "allowed": false,
@@ -117,8 +120,38 @@ RateLimit-Reset: 1719876603000
   "retry_after": 52
 }
 ```
+* **Response Body (401 Unauthorized - Invalid Key)**:
+```json
+{
+  "error": "Unauthorized",
+  "message": "Invalid API Key"
+}
+```
 
-### 2. Admin Adjust Tier Default Limit
+### 2. Admin Generate API Key
+* **Endpoint**: `POST /admin/api-keys`
+* **Request Body**:
+```json
+{
+  "userId": "client_app_name",
+  "tier": "pro"
+}
+```
+* **Response (Plain text key returned ONLY ONCE)**:
+```json
+{
+  "message": "API Key generated successfully. Please copy it now as it will not be shown again.",
+  "apiKey": "rate_key_9df273cb8a0...",
+  "tier": "pro",
+  "userId": "client_app_name"
+}
+```
+
+### 3. Admin Get Hashed Keys List
+* **Endpoint**: `GET /admin/api-keys`
+* **Response**: Lists generated API key metadata, prefixes, and SHA256 hashes.
+
+### 4. Admin Adjust Tier Default Limit
 * **Endpoint**: `POST /admin/set-limit`
 * **Request Body**:
 ```json
@@ -129,7 +162,7 @@ RateLimit-Reset: 1719876603000
 }
 ```
 
-### 3. Admin Custom Quota for User
+### 5. Admin Custom Quota for User
 * **Endpoint**: `PATCH /admin/user/:id/quota`
 * **Request Body**:
 ```json
@@ -139,12 +172,23 @@ RateLimit-Reset: 1719876603000
 }
 ```
 
-### 4. Admin View Rejected Analytics
+### 6. Admin View Rejected Analytics
 * **Endpoint**: `GET /admin/analytics/rejected-requests`
-* **Response**: List of the 100 most recent rejected request records.
+* **Response**: List of recent rejected audit logs, including client `ip_address` details.
 
-### 5. Admin Force Quota Reset
+### 7. Admin Force Quota Reset
 * **Endpoint**: `DELETE /admin/user/:id/quota-reset`
+
+---
+
+## Production Cloud Deployment (Vercel Serverless)
+
+The API is fully configured for deployment on **Vercel** serverless functions, connected to cloud database managers:
+
+1. **Config File**: Setup details are mapped dynamically inside `vercel.json` for routing endpoints to `src/app.js` and static views.
+2. **Postgres TLS & graceful boot**: Enabled automatic SSL/TLS options dynamically for cloud pg pools, and handles grace connections on boot to prevent server crashes.
+3. **Vercel environment variables**: Configure `REDIS_URL` (Upstash) and `DB_URL` (Supabase/Neon) inside project settings.
+
 
 ---
 

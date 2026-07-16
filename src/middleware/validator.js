@@ -4,12 +4,13 @@ const logger = require('../logger');
  * Validates request payload for /api/v1/check-limit
  */
 function validateCheckLimit(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
   const { user_id, endpoint, timestamp } = req.body;
 
-  if (!user_id || typeof user_id !== 'string' || user_id.trim() === '') {
+  if (!apiKey && (!user_id || typeof user_id !== 'string' || user_id.trim() === '')) {
     return res.status(400).json({
       error: 'Bad Request',
-      message: 'user_id must be a non-empty string'
+      message: 'user_id must be a non-empty string or X-API-Key header must be provided'
     });
   }
 

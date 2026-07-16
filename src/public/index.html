@@ -3,10 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rate Limiter Admin Dashboard</title>
+  <title>Distributed Rate Limiter Admin Playground</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <!-- Load Mermaid.js for System Architecture Diagrams -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+  </script>
   <style>
     :root {
       --bg-dark: #f8fafc;
@@ -54,7 +59,7 @@
     h1 {
       font-size: 2.25rem;
       font-weight: 700;
-      background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 50%, #34d399 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, #1e1b4b 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -65,14 +70,16 @@
     }
 
     .status-badge {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
-      padding: 0.5rem 1rem;
-      border-radius: 9999px;
       font-size: 0.875rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
     }
 
     .status-dot {
@@ -81,16 +88,18 @@
       border-radius: 50%;
       background-color: var(--success);
       box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
     }
 
-    .status-dot.offline {
-      background-color: var(--danger);
-      box-shadow: 0 0 8px var(--danger);
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
       gap: 2rem;
       margin-bottom: 2rem;
     }
@@ -102,7 +111,7 @@
       border: 1px solid var(--border-color);
       border-radius: 1rem;
       padding: 2rem;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.03);
     }
 
     .card h2 {
@@ -139,12 +148,12 @@
     .form-control:focus {
       outline: none;
       border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
     }
 
     .btn {
       width: 100%;
-      background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
       color: white;
       border: none;
       border-radius: 0.5rem;
@@ -161,7 +170,7 @@
 
     .btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
     }
 
     .btn:active {
@@ -173,7 +182,7 @@
     }
 
     .btn-danger:hover {
-      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
     }
 
     .table-container {
@@ -203,39 +212,48 @@
     }
 
     tr:hover td {
-      background: rgba(255, 255, 255, 0.02);
+      background: rgba(15, 23, 42, 0.01);
     }
 
     .badge-error {
-      background: rgba(239, 68, 68, 0.15);
-      color: #fca5a5;
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
       padding: 0.25rem 0.5rem;
       border-radius: 0.25rem;
       font-size: 0.75rem;
       font-weight: 600;
-      border: 1px solid rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.15);
     }
 
     .badge-fallback {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fde047;
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
       padding: 0.25rem 0.5rem;
       border-radius: 0.25rem;
       font-size: 0.75rem;
       font-weight: 600;
-      border: 1px solid rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(245, 158, 11, 0.15);
     }
 
-    /* Notification popup styling */
+    .badge-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid rgba(16, 185, 129, 0.15);
+    }
+
     .toast {
       position: fixed;
       bottom: 2rem;
       right: 2rem;
-      background: #1e293b;
+      background: white;
       border-left: 4px solid var(--success);
       padding: 1rem 1.5rem;
       border-radius: 0.5rem;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
       display: flex;
       align-items: center;
       gap: 0.75rem;
@@ -247,31 +265,204 @@
     .toast.show {
       transform: translateY(0);
     }
+
+    /* Accordion section styling */
+    .accordion {
+      margin-bottom: 2rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      overflow: hidden;
+    }
+
+    .accordion-header {
+      background: #ffffff;
+      padding: 1.25rem 2rem;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .accordion-content {
+      padding: 2rem;
+      display: none;
+      background: #ffffff;
+    }
+
+    .accordion-content.open {
+      display: block;
+    }
+
+    .code-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1.25rem;
+      border-radius: 0.5rem;
+      font-family: monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+      margin-top: 0.5rem;
+      position: relative;
+    }
+
+    .doc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .doc-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
       <div>
-        <h1>Rate Limiter Admin</h1>
-        <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem;">Distributed API Quota & Failure Control</p>
+        <h1>Rate Limiter Developer Console</h1>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem;">
+          Distributed Rolling Sliding Window Counter & Failure Resiliency Control
+        </p>
       </div>
       <div class="system-status">
-        <div class="status-badge">
+        <div class="status-badge" title="Checks stats live in Redis">
           <div class="status-dot" id="redis-dot"></div>
-          <span>Redis State: <b style="color: var(--success);" id="redis-state">ONLINE</b></span>
+          <span>Redis: <b style="color: var(--success);" id="redis-state">ONLINE</b> <span id="redis-stats" style="font-weight:normal; font-size: 0.8rem; color:var(--text-muted);"></span></span>
         </div>
-        <div class="status-badge">
+        <div class="status-badge" title="Queries total log records count in PostgreSQL">
           <div class="status-dot" id="db-dot"></div>
-          <span>Audit DB: <b style="color: var(--success);" id="db-state">ONLINE</b></span>
+          <span>Postgres: <b style="color: var(--success);" id="db-state">ONLINE</b> <span id="db-stats" style="font-weight:normal; font-size: 0.8rem; color:var(--text-muted);"></span></span>
         </div>
       </div>
     </header>
 
+    <!-- Collapsible System Architecture Section -->
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion('arch-accordion')">
+        <span>⚙️ System Design Architecture (Recruiter Review Panel)</span>
+        <span id="arch-arrow">▼</span>
+      </div>
+      <div class="accordion-content open" id="arch-accordion">
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
+            <strong>Sliding Window Counter Algorithm:</strong> Built using Redis Sorted Sets (ZSET). Timestamps of requests are stored as members with scores. Evictions outside the rolling range are executed atomically via Lua scripts on the memory engine. 
+            <strong>Performance Thinking:</strong> Latency checks process in <b>~1ms</b> (hot path). DB audits write asynchronously in background promises (non-blocking). Circuit breakers ensure fallback (fail-open) if Redis drops connection.
+          </p>
+          <div class="mermaid" style="display: flex; justify-content: center; background: #ffffff; padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--border-color);">
+            graph TD
+                Client[Playground / Client Application] -->|POST /api/v1/check-limit| Nginx[Nginx Load Balancer]
+                Nginx -->|Round-Robin Port 3000| Nodes[Express Backend Cluster]
+                Nodes -->|1. Atomic Lua Check: ZADD/ZCARD| Redis[(Upstash Redis Cache)]
+                Nodes -->|2. Asynchronous Logging| Postgres[(Supabase Postgres Audits)]
+                Nodes -->|3. Webhook Alerting| Webhooks[Registered Webhook Observers]
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="grid">
-      <!-- Card 1: Custom Quota Override -->
+      <!-- Card 1: API Playground (Live Tester) -->
+      <div class="card" style="grid-column: span 2;">
+        <h2>Interactive API Playground</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 2rem; margin-top: 1rem;">
+          <div>
+            <form id="playground-form">
+              <div class="form-group">
+                <label for="play-auth-type">Authentication Method</label>
+                <select id="play-auth-type" class="form-control" onchange="togglePlaygroundAuth()">
+                  <option value="userid">Simulated User ID & Tier</option>
+                  <option value="apikey">Secure API Key</option>
+                </select>
+              </div>
+
+              <!-- Auth Tier Fields -->
+              <div id="play-user-fields">
+                <div class="form-group">
+                  <label for="play-userid">User ID</label>
+                  <input type="text" id="play-userid" class="form-control" value="free_user_1">
+                </div>
+                <div class="form-group">
+                  <label for="play-tier">User Tier</label>
+                  <select id="play-tier" class="form-control">
+                    <option value="free">Free Tier (10 req / min)</option>
+                    <option value="pro">Pro Tier (100 req / min)</option>
+                    <option value="enterprise">Enterprise Tier (1000 req / min)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Auth API Key Fields -->
+              <div id="play-apikey-fields" style="display: none;">
+                <div class="form-group">
+                  <label for="play-apikey">Enter plain text API Key</label>
+                  <input type="text" id="play-apikey" class="form-control" placeholder="e.g. rate_key_..." value="free_key_123">
+                  <p style="font-size:0.75rem; color:var(--text-muted); margin-top:0.35rem;">
+                    Matches SHA256 hashes: <b>free_key_123</b>, <b>pro_key_456</b>, or <b>enterprise_key_789</b>
+                  </p>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="play-endpoint">Endpoint Route</label>
+                <select id="play-endpoint" class="form-control">
+                  <option value="/api/resource">/api/resource (Default Tier Limits)</option>
+                  <option value="/api/upload">/api/upload (Overridden: Free=2, Pro=10, Ent=50)</option>
+                </select>
+              </div>
+
+              <button type="submit" class="btn" style="margin-top: 1.5rem;" id="play-btn">Fire API Request</button>
+            </form>
+          </div>
+
+          <!-- Play Outcomes -->
+          <div style="background: rgba(15, 23, 42, 0.02); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <span style="font-weight: 600; font-size: 0.95rem;">Test Response Output</span>
+                <span id="play-status-badge" class="badge-success" style="display: none;">ALLOWED</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="background: white; border: 1px solid var(--border-color); border-radius: 0.25rem; padding: 0.75rem; text-align: center;">
+                  <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Remaining</div>
+                  <div id="play-remaining" style="font-size: 1.75rem; font-weight: 700;">-</div>
+                </div>
+                <div style="background: white; border: 1px solid var(--border-color); border-radius: 0.25rem; padding: 0.75rem; text-align: center;">
+                  <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Allowed Limit</div>
+                  <div id="play-limit" style="font-size: 1.75rem; font-weight: 700;">-</div>
+                </div>
+              </div>
+
+              <div id="play-cooldown-box" style="display: none; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 0.5rem; padding: 0.75rem 1rem; margin-bottom: 1.5rem; text-align: center; color: var(--danger); font-weight: 600; font-size: 0.9rem;">
+                ⏱ Rate Limit Exceeded (429)! Retrying in <span id="play-cooldown">0</span>s
+              </div>
+
+              <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Response Headers:</div>
+              <div id="play-headers" style="font-family: monospace; font-size: 0.8rem; background: #ffffff; border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 0.25rem; margin-bottom: 1rem; white-space: pre-line; color: var(--text-main);">
+                Wait for request...
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Response JSON payload:</div>
+              <div class="code-block" id="play-json" style="margin-top: 0; max-height: 150px;">
+                {}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Quota Adjust overrides -->
       <div class="card">
-        <h2>Adjust User Quota</h2>
+        <h2>Custom User Quota Overrides</h2>
         <form id="quota-form">
           <div class="form-group">
             <label for="quota-userid">User ID</label>
@@ -279,32 +470,60 @@
           </div>
           <div class="form-group">
             <label for="quota-limit">Limit (Requests)</label>
-            <input type="number" id="quota-limit" class="form-control" placeholder="e.g. 500" required>
+            <input type="number" id="quota-limit" class="form-control" placeholder="e.g. 5" required>
           </div>
           <div class="form-group">
             <label for="quota-window">Window (Milliseconds)</label>
-            <input type="number" id="quota-window" class="form-control" value="60000" placeholder="e.g. 60000" required>
+            <input type="number" id="quota-window" class="form-control" value="10000" placeholder="e.g. 10000" required>
           </div>
           <button type="submit" class="btn">Apply Quota Override</button>
         </form>
       </div>
 
-      <!-- Card 2: Force Reset -->
+      <!-- Card 3: API Key Generator (SHA256 Hashed) -->
       <div class="card">
-        <h2>Force Quota Reset</h2>
+        <h2>Secure Hashed API Key Generator</h2>
+        <form id="key-gen-form">
+          <div class="form-group">
+            <label for="key-userid">User ID</label>
+            <input type="text" id="key-userid" class="form-control" placeholder="e.g. api_client_1" required>
+          </div>
+          <div class="form-group">
+            <label for="key-tier">Assigned Quota Tier</label>
+            <select id="key-tier" class="form-control">
+              <option value="free">Free Tier (10 req/min)</option>
+              <option value="pro">Pro Tier (100 req/min)</option>
+              <option value="enterprise">Enterprise Tier (1000 req/min)</option>
+            </select>
+          </div>
+          <button type="submit" class="btn">Generate Key</button>
+        </form>
+
+        <div id="generated-key-container" style="display: none; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 0.5rem; padding: 1rem; margin-top: 1rem;">
+          <label style="display: block; font-size: 0.75rem; color: var(--success); font-weight: 700; margin-bottom: 0.25rem; text-transform: uppercase;">Plain Text API Key (Copy Now!):</label>
+          <div id="plain-key" style="font-family: monospace; font-size: 0.9rem; font-weight: 700; color: #065f46; word-break: break-all; margin-bottom: 0.5rem;"></div>
+          <p style="font-size: 0.7rem; color: var(--text-muted); line-height: 1.3;">
+            Note: On the server, only the <b>SHA256 hash</b> is stored in Redis.
+          </p>
+        </div>
+      </div>
+
+      <!-- Card 4: Force Quota Reset -->
+      <div class="card">
+        <h2>Flush Quota Cache State</h2>
         <form id="reset-form" style="display: flex; flex-direction: column; justify-content: space-between; height: calc(100% - 2.5rem);">
           <div class="form-group">
             <label for="reset-userid">User ID to Reset</label>
-            <input type="text" id="reset-userid" class="form-control" placeholder="e.g. user_12345" required>
+            <input type="text" id="reset-userid" class="form-control" placeholder="e.g. free_user_1" required>
             <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.5rem; line-height: 1.4;">
-              This clears all active sorted set records and reset periods for the user in the Redis cache. The user will start fresh with their default tier limit.
+              Clears active rolling sets for the user in Redis. This allows immediately resetting limit blocks for testing.
             </p>
           </div>
           <button type="submit" class="btn btn-danger">Flush Cache State</button>
         </form>
       </div>
 
-      <!-- Card 3: Webhooks Manager -->
+      <!-- Card 5: Webhooks Observer Registry -->
       <div class="card">
         <h2>Webhook Alerts Manager</h2>
         <form id="webhook-form" style="margin-bottom: 1.25rem;">
@@ -316,23 +535,85 @@
         </form>
         <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
           <label style="display: block; font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.75rem;">Active Webhooks</label>
-          <ul id="webhooks-list" style="list-style: none; display: flex; flex-direction: column; gap: 0.5rem; max-height: 120px; overflow-y: auto; padding-right: 0.25rem;">
+          <ul id="webhooks-list" style="list-style: none; display: flex; flex-direction: column; gap: 0.5rem; max-height: 100px; overflow-y: auto; padding-right: 0.25rem;">
             <li style="color: var(--text-muted); font-size: 0.875rem;">Loading webhooks...</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Card 6: Hashed API Keys Tracking -->
+      <div class="card">
+        <h2>Hashed API Keys Registry</h2>
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; max-height: 250px; overflow-y: auto;">
+          <ul id="api-keys-list" style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem;">
+            <li style="color: var(--text-muted); font-size: 0.875rem;">Loading active keys...</li>
           </ul>
         </div>
       </div>
     </div>
 
-    <!-- Card 3: Live Rejections Log -->
+    <!-- Accordion Developer API Documentation -->
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion('docs-accordion')">
+        <span>📖 Developer API Documentation</span>
+        <span id="docs-arrow">▲</span>
+      </div>
+      <div class="accordion-content" id="docs-accordion">
+        <div class="doc-grid">
+          <div>
+            <h3>Check Quota Limit</h3>
+            <p style="font-size:0.875rem; color: var(--text-muted); margin: 0.5rem 0 1rem 0;">
+              Post a user request to verify sliding window allowances. Can authenticate using user ID in payload or API Key header.
+            </p>
+            <div style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom: 0.25rem;">METHOD & URL:</div>
+            <div style="font-family:monospace; background: #e2e8f0; padding:0.5rem; border-radius:0.25rem; font-size:0.85rem; font-weight:600; margin-bottom: 1rem;">
+              POST https://rate-limiter-three.vercel.app/api/v1/check-limit
+            </div>
+            <div style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom: 0.25rem;">HEADERS:</div>
+            <div style="font-family:monospace; background: #f1f5f9; padding:0.5rem; border-radius:0.25rem; font-size:0.85rem; line-height: 1.4; margin-bottom: 1rem;">
+              Content-Type: application/json<br>
+              X-API-Key: rate_key_7480c171977... (Alternative)<br>
+              X-User-Tier: pro (Alternative if no key)
+            </div>
+          </div>
+
+          <div>
+            <h3>JSON Payload Formats</h3>
+            <div style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom:0.25rem;">Request Body:</div>
+            <div class="code-block" style="margin-top:0;">
+{
+  "user_id": "free_user_1",
+  "endpoint": "/api/resource",
+  "timestamp": 1784187512510
+}
+            </div>
+
+            <div style="font-size:0.8rem; font-weight:700; color:var(--primary); margin-bottom:0.25rem; margin-top:1rem;">Response Payload (429 Rejected):</div>
+            <div class="code-block" style="margin-top:0;">
+{
+  "allowed": false,
+  "remaining": 0,
+  "limit": 10,
+  "reset_at": 1784187523175,
+  "retry_after": 8
+}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 7: Live Rejections Log -->
     <div class="card" style="margin-bottom: 0;">
-      <h2>Live Rejected Requests Analytics</h2>
+      <h2>Live Rejected Requests Analytics (PostgreSQL Audit Log)</h2>
       <div class="table-container" style="margin-top: 1.5rem;">
         <table>
           <thead>
             <tr>
               <th>Timestamp</th>
-              <th>User ID</th>
+              <th>User ID / Client</th>
               <th>Endpoint</th>
+              <th>Client IP</th>
               <th>Limit Quota</th>
               <th>Reason</th>
               <th>Fallback</th>
@@ -340,7 +621,7 @@
           </thead>
           <tbody id="logs-table-body">
             <tr>
-              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading logs...</td>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading logs...</td>
             </tr>
           </tbody>
         </table>
@@ -376,82 +657,32 @@
       }, 3000);
     }
 
-    // Load recent rejected logs
-    async function loadRejectedLogs() {
-      try {
-        const res = await fetch('/admin/analytics/rejected-requests');
-        if (!res.ok) throw new Error('Failed to fetch analytics');
-        const logs = await res.json();
-        
-        const tbody = document.getElementById('logs-table-body');
-        if (logs.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No rate limit rejections registered. System healthy.</td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = logs.map(log => {
-          const date = new Date(log.timestamp).toLocaleString();
-          return `
-            <tr>
-              <td>${date}</td>
-              <td style="font-family: monospace; font-weight: 600;">${log.user_id}</td>
-              <td style="font-family: monospace;">${log.endpoint}</td>
-              <td>${log.limit_quota}</td>
-              <td><span class="badge-error">${log.rejection_reason || 'EXCEEDED'}</span></td>
-              <td>
-                ${log.fallback 
-                  ? '<span class="badge-fallback">YES (Degraded Mode)</span>' 
-                  : '<span style="color: var(--text-muted);">No</span>'}
-              </td>
-            </tr>
-          `;
-        }).join('');
-      } catch (err) {
-        console.error(err);
+    // Toggle Collapsible Sections
+    function toggleAccordion(id) {
+      const content = document.getElementById(id);
+      const arrow = document.getElementById(id.split('-')[0] + '-arrow');
+      content.classList.toggle('open');
+      if (content.classList.contains('open')) {
+        arrow.textContent = '▼';
+      } else {
+        arrow.textContent = '▲';
       }
     }
 
-    // Quota Form Submission
-    document.getElementById('quota-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const userId = document.getElementById('quota-userid').value;
-      const limit = parseInt(document.getElementById('quota-limit').value);
-      const windowMs = parseInt(document.getElementById('quota-window').value);
-
-      try {
-        const res = await fetch(`/admin/user/${userId}/quota`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ limit, windowMs })
-        });
-        
-        if (!res.ok) throw new Error('Request failed');
-        const data = await res.json();
-        showToast(data.message);
-        document.getElementById('quota-form').reset();
-      } catch (err) {
-        showToast('Failed to apply quota override.', true);
+    // Toggle Playground Auth Inputs
+    function togglePlaygroundAuth() {
+      const type = document.getElementById('play-auth-type').value;
+      const userFields = document.getElementById('play-user-fields');
+      const apikeyFields = document.getElementById('play-apikey-fields');
+      
+      if (type === 'userid') {
+        userFields.style.display = 'block';
+        apikeyFields.style.display = 'none';
+      } else {
+        userFields.style.display = 'none';
+        apikeyFields.style.display = 'block';
       }
-    });
-
-    // Reset Form Submission
-    document.getElementById('reset-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const userId = document.getElementById('reset-userid').value;
-
-      try {
-        const res = await fetch(`/admin/user/${userId}/quota-reset`, {
-          method: 'DELETE'
-        });
-        
-        if (!res.ok) throw new Error('Request failed');
-        const data = await res.json();
-        showToast(data.message);
-        document.getElementById('reset-form').reset();
-      } catch (err) {
-        showToast('Failed to reset user cache state.', true);
-      }
-    });
+    }
 
     // Load active Webhooks
     async function loadWebhooks() {
@@ -477,6 +708,292 @@
       }
     }
 
+    // Load API Keys Registry
+    async function loadApiKeys() {
+      try {
+        const res = await fetch('/admin/api-keys');
+        if (!res.ok) throw new Error('Failed to fetch API keys');
+        const keys = await res.json();
+        
+        const list = document.getElementById('api-keys-list');
+        if (keys.length === 0) {
+          list.innerHTML = `<li style="color: var(--text-muted); font-size: 0.875rem;">No custom generated keys active in Redis.</li>`;
+          return;
+        }
+
+        list.innerHTML = keys.map(k => `
+          <li style="background: #ffffff; border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.85rem; font-family: monospace;">
+            <div style="display:flex; justify-content:space-between; margin-bottom: 0.25rem;">
+              <span style="font-weight:700; color:var(--primary);">${k.userId}</span>
+              <span class="badge-success" style="font-size:0.7rem; font-weight:700; padding: 0.1rem 0.35rem;">${k.tier.toUpperCase()}</span>
+            </div>
+            <div style="font-size: 0.75rem; color:var(--text-muted); word-break:break-all;">Prefix: ${k.keyPrefix}</div>
+            <div style="font-size: 0.75rem; color:var(--text-muted); word-break:break-all;">Hash: ${k.hashedKey.slice(0, 16)}...</div>
+          </li>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Load recent rejected logs
+    async function loadRejectedLogs() {
+      try {
+        const res = await fetch('/admin/analytics/rejected-requests');
+        if (!res.ok) throw new Error('Failed to fetch analytics');
+        const logs = await res.json();
+        
+        const tbody = document.getElementById('logs-table-body');
+        if (logs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No rate limit rejections registered. System healthy.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = logs.map(log => {
+          const date = new Date(log.timestamp).toLocaleString();
+          return `
+            <tr>
+              <td>${date}</td>
+              <td style="font-family: monospace; font-weight: 600;">${log.user_id}</td>
+              <td style="font-family: monospace;">${log.endpoint}</td>
+              <td style="font-family: monospace; font-size:0.85rem;">${log.ip_address || '127.0.0.1'}</td>
+              <td>${log.limit_quota}</td>
+              <td><span class="badge-error">${log.rejection_reason || 'EXCEEDED'}</span></td>
+              <td>
+                ${log.fallback 
+                  ? '<span class="badge-fallback">YES (Degraded Mode)</span>' 
+                  : '<span style="color: var(--text-muted);">No</span>'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Load system stats live
+    async function loadSystemStats() {
+      try {
+        const res = await fetch('/admin/stats');
+        if (!res.ok) throw new Error('Failed to fetch stats');
+        const data = await res.json();
+
+        // Update indicators text
+        document.getElementById('redis-stats').textContent = `(Keys: ${data.redis.activeKeys}, Webhooks: ${data.redis.webhooksCount})`;
+        document.getElementById('db-stats').textContent = `(Total: ${data.db.totalLogs}, Rejected: ${data.db.totalRejections})`;
+        
+        // Update states styles if offline
+        const rDot = document.getElementById('redis-dot');
+        const rState = document.getElementById('redis-state');
+        if (data.redis.status === 'ONLINE') {
+          rState.textContent = 'ONLINE';
+          rState.style.color = 'var(--success)';
+          rDot.style.backgroundColor = 'var(--success)';
+          rDot.style.boxShadow = '0 0 8px var(--success)';
+        } else {
+          rState.textContent = 'OFFLINE';
+          rState.style.color = 'var(--danger)';
+          rDot.style.backgroundColor = 'var(--danger)';
+          rDot.style.boxShadow = '0 0 8px var(--danger)';
+        }
+
+        const dDot = document.getElementById('db-dot');
+        const dState = document.getElementById('db-state');
+        if (data.db.status === 'ONLINE') {
+          dState.textContent = 'ONLINE';
+          dState.style.color = 'var(--success)';
+          dDot.style.backgroundColor = 'var(--success)';
+          dDot.style.boxShadow = '0 0 8px var(--success)';
+        } else {
+          dState.textContent = 'OFFLINE';
+          dState.style.color = 'var(--danger)';
+          dDot.style.backgroundColor = 'var(--danger)';
+          dDot.style.boxShadow = '0 0 8px var(--danger)';
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Trigger API Request inside Playground
+    let countdownInterval = null;
+    document.getElementById('playground-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearInterval(countdownInterval);
+
+      const authType = document.getElementById('play-auth-type').value;
+      const endpoint = document.getElementById('play-endpoint').value;
+      
+      const headers = { 'Content-Type': 'application/json' };
+      const body = { endpoint, timestamp: Date.now() };
+
+      if (authType === 'userid') {
+        const userId = document.getElementById('play-userid').value;
+        const tier = document.getElementById('play-tier').value;
+        body.user_id = userId;
+        headers['X-User-Tier'] = tier;
+      } else {
+        const apiKey = document.getElementById('play-apikey').value;
+        headers['X-API-Key'] = apiKey;
+      }
+
+      // Display loader status
+      const playBtn = document.getElementById('play-btn');
+      playBtn.textContent = 'Sending...';
+      playBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/v1/check-limit', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body)
+        });
+
+        const statusBadge = document.getElementById('play-status-badge');
+        const remainingEl = document.getElementById('play-remaining');
+        const limitEl = document.getElementById('play-limit');
+        const cooldownBox = document.getElementById('play-cooldown-box');
+        const headersEl = document.getElementById('play-headers');
+        const jsonEl = document.getElementById('play-json');
+
+        // Render headers
+        headersEl.textContent = `HTTP/1.1 ${res.status} ${res.statusText}\n` +
+          `RateLimit-Limit: ${res.headers.get('RateLimit-Limit') || '-'}\n` +
+          `RateLimit-Remaining: ${res.headers.get('RateLimit-Remaining') || '-'}\n` +
+          `RateLimit-Reset: ${res.headers.get('RateLimit-Reset') || '-'}\n` +
+          `Retry-After: ${res.headers.get('Retry-After') || '-'}`;
+
+        const data = await res.json();
+        jsonEl.textContent = JSON.stringify(data, null, 2);
+
+        if (res.status === 200) {
+          statusBadge.textContent = 'ALLOWED';
+          statusBadge.className = 'badge-success';
+          statusBadge.style.display = 'inline';
+          cooldownBox.style.display = 'none';
+
+          remainingEl.textContent = data.remaining;
+          limitEl.textContent = data.limit;
+        } else if (res.status === 429) {
+          statusBadge.textContent = 'BLOCKED (429)';
+          statusBadge.className = 'badge-error';
+          statusBadge.style.display = 'inline';
+
+          remainingEl.textContent = '0';
+          limitEl.textContent = data.limit;
+
+          // Start live countdown timer for Retry-After
+          cooldownBox.style.display = 'block';
+          let retrySeconds = parseInt(data.retry_after || '1', 10);
+          document.getElementById('play-cooldown').textContent = retrySeconds;
+
+          countdownInterval = setInterval(() => {
+            retrySeconds--;
+            if (retrySeconds <= 0) {
+              clearInterval(countdownInterval);
+              cooldownBox.style.display = 'none';
+            } else {
+              document.getElementById('play-cooldown').textContent = retrySeconds;
+            }
+          }, 1000);
+        } else if (res.status === 401) {
+          statusBadge.textContent = 'UNAUTHORIZED';
+          statusBadge.className = 'badge-error';
+          statusBadge.style.display = 'inline';
+          cooldownBox.style.display = 'none';
+          remainingEl.textContent = '-';
+          limitEl.textContent = '-';
+          showToast('Invalid API Key provided', true);
+        } else {
+          showToast(data.error || 'Server error', true);
+        }
+
+        // Reload data
+        loadRejectedLogs();
+        loadSystemStats();
+      } catch (err) {
+        showToast('Request Connection Failed', true);
+      } finally {
+        playBtn.textContent = 'Fire API Request';
+        playBtn.disabled = false;
+      }
+    });
+
+    // Quota Override Form Submission
+    document.getElementById('quota-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userId = document.getElementById('quota-userid').value;
+      const limit = parseInt(document.getElementById('quota-limit').value);
+      const windowMs = parseInt(document.getElementById('quota-window').value);
+
+      try {
+        const res = await fetch(`/admin/user/${userId}/quota`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit, windowMs })
+        });
+        
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+        showToast(data.message);
+        document.getElementById('quota-userid').value = '';
+        document.getElementById('quota-limit').value = '';
+        loadSystemStats();
+      } catch (err) {
+        showToast('Failed to apply quota override.', true);
+      }
+    });
+
+    // Key Generator Form Submission
+    document.getElementById('key-gen-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userId = document.getElementById('key-userid').value;
+      const tier = document.getElementById('key-tier').value;
+
+      try {
+        const res = await fetch('/admin/api-keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, tier })
+        });
+        
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+        showToast('API Key generated!');
+        
+        // Show plain text key container
+        document.getElementById('plain-key').textContent = data.apiKey;
+        document.getElementById('generated-key-container').style.display = 'block';
+
+        document.getElementById('key-userid').value = '';
+        loadApiKeys();
+        loadSystemStats();
+      } catch (err) {
+        showToast('Failed to generate key.', true);
+      }
+    });
+
+    // Reset Form Submission
+    document.getElementById('reset-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userId = document.getElementById('reset-userid').value;
+
+      try {
+        const res = await fetch(`/admin/user/${userId}/quota-reset`, {
+          method: 'DELETE'
+        });
+        
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+        showToast(data.message);
+        document.getElementById('reset-userid').value = '';
+        loadSystemStats();
+      } catch (err) {
+        showToast('Failed to reset user cache state.', true);
+      }
+    });
+
     // Register Webhook
     document.getElementById('webhook-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -494,6 +1011,7 @@
         showToast(data.message);
         document.getElementById('webhook-url').value = '';
         loadWebhooks();
+        loadSystemStats();
       } catch (err) {
         showToast('Failed to register webhook.', true);
       }
@@ -512,15 +1030,18 @@
         const data = await res.json();
         showToast(data.message);
         loadWebhooks();
+        loadSystemStats();
       } catch (err) {
         showToast('Failed to unregister webhook.', true);
       }
     }
 
-    // Initial load and auto refresh
+    // Initial load and auto refresh (every 5 seconds)
     loadRejectedLogs();
     loadWebhooks();
-    setInterval(loadRejectedLogs, 5000);
+    loadApiKeys();
+    loadSystemStats();
+    setInterval(loadSystemStats, 5000);
   </script>
 </body>
 </html>

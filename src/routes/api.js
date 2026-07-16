@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { isRateLimited } = require('../limiter/slidingWindow');
 const { logAudit } = require('../db');
 const { validateCheckLimit } = require('../middleware/validator');
@@ -69,17 +70,55 @@ function dispatchWebhookAlerts(userId, endpoint, limit, resetAt, now) {
 router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
   const hrStart = process.hrtime();
   
-  const { user_id: userId, endpoint, timestamp } = req.body;
+  const apiKey = req.headers['x-api-key'];
+  const { user_id: bodyUserId, endpoint, timestamp } = req.body;
   const now = timestamp ? Number(timestamp) : Date.now();
 
-  // 1. Determine tenant tier
-  let tier = req.headers['x-user-tier'] || 'free';
-  if (userId.startsWith('enterprise_')) {
-    tier = 'enterprise';
-  } else if (userId.startsWith('pro_')) {
-    tier = 'pro';
-  } else if (userId.startsWith('free_')) {
-    tier = 'free';
+  let activeUserId;
+  let tier;
+
+  // 1. Authenticate API Key or deduce tier from User ID
+  if (apiKey) {
+    const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
+    let keyData = null;
+
+    // Check Redis dynamic keys first
+    try {
+      if (client.isOpen) {
+        const customKeyStr = await client.get(`api_key:${hashedKey}`);
+        if (customKeyStr) {
+          keyData = JSON.parse(customKeyStr);
+        }
+      }
+    } catch (err) {
+      logger.warn({ err, hashedKey }, 'Failed to fetch API key metadata from Redis');
+    }
+
+    // Fall back to default mock API keys
+    if (!keyData) {
+      keyData = config.mockApiKeys[hashedKey];
+    }
+
+    if (!keyData) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid API Key'
+      });
+    }
+
+    activeUserId = keyData.userId;
+    tier = keyData.tier;
+  } else {
+    activeUserId = bodyUserId;
+    // Deduce tenant tier from user_id prefix or header
+    tier = req.headers['x-user-tier'] || 'free';
+    if (activeUserId.startsWith('enterprise_')) {
+      tier = 'enterprise';
+    } else if (activeUserId.startsWith('pro_')) {
+      tier = 'pro';
+    } else if (activeUserId.startsWith('free_')) {
+      tier = 'free';
+    }
   }
 
   // Fallback to free if an invalid tier is supplied
@@ -91,12 +130,14 @@ router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
   let rule = null;
 
   try {
-    const customRuleStr = await client.get(`rule_override:${userId}`);
-    if (customRuleStr) {
-      rule = JSON.parse(customRuleStr);
+    if (client.isOpen) {
+      const customRuleStr = await client.get(`rule_override:${activeUserId}`);
+      if (customRuleStr) {
+        rule = JSON.parse(customRuleStr);
+      }
     }
   } catch (err) {
-    logger.warn({ err, userId }, 'Failed to fetch user quota override from Redis');
+    logger.warn({ err, activeUserId }, 'Failed to fetch user quota override from Redis');
   }
 
   if (!rule) {
@@ -109,7 +150,7 @@ router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
 
   try {
     // 3. Query the rate limiting state engine (with circuit breaker)
-    const result = await isRateLimited(userId, endpoint, rule, now);
+    const result = await isRateLimited(activeUserId, endpoint, rule, now);
 
     // 4. Set standard response headers
     res.setHeader('RateLimit-Limit', rule.limit);
@@ -122,21 +163,25 @@ router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
       res.setHeader('Retry-After', retryAfter);
     }
 
+    // Extract client IP address
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
     // 5. Fire-and-forget logging to Postgres Audit Trail
     logAudit(
-      userId,
+      activeUserId,
       endpoint,
       result.allowed,
       rule.limit,
       result.remaining,
       result.resetAt,
       !!result.fallback,
-      result.allowed ? null : 'RATE_LIMIT_EXCEEDED'
+      result.allowed ? null : 'RATE_LIMIT_EXCEEDED',
+      ipAddress
     );
 
     // If rate limited, asynchronously dispatch webhooks
     if (!result.allowed) {
-      dispatchWebhookAlerts(userId, endpoint, rule.limit, result.resetAt, now);
+      dispatchWebhookAlerts(activeUserId, endpoint, rule.limit, result.resetAt, now);
     }
 
     // 6. Calculate decision duration and log metrics to Prometheus

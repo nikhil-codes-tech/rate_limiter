@@ -87,6 +87,30 @@ describe('Express Pipeline & Admin Integration Tests', () => {
       expect(res.headers['ratelimit-reset']).toBe('1050');
       expect(res.headers['retry-after']).toBe('1');
     });
+
+    test('should allow rate limiting check using a valid mock API key', async () => {
+      client.get.mockResolvedValue(null);
+      client.checkLimit.mockResolvedValue([1, 9, 2000]);
+
+      const res = await request(app)
+        .post('/api/v1/check-limit')
+        .set('X-API-Key', 'free_key_123')
+        .send({ endpoint: '/api/test' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.allowed).toBe(true);
+      expect(res.body.remaining).toBe(9);
+    });
+
+    test('should reject rate limiting check with 401 using an invalid API key', async () => {
+      const res = await request(app)
+        .post('/api/v1/check-limit')
+        .set('X-API-Key', 'invalid_key_abc')
+        .send({ endpoint: '/api/test' });
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.error).toBe('Unauthorized');
+    });
   });
 
   describe('Admin Endpoints', () => {
