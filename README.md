@@ -1,5 +1,8 @@
 # Distributed Rate Limiter Service
 
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/nikhil-codes-tech/rate_limiter)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/nikhil-codes-tech/rate_limiter)
+
 A production-grade, distributed rate-limiting microservice architecture designed for high throughput (50k+ req/sec) and sub-millisecond decision latency (<2ms p50, <10ms p99). 
 
 It implements an atomic sliding window rate limiter in Redis using Lua scripts, captures historical request metrics asynchronously in PostgreSQL, ensures high availability using Nginx round-robin routing and Opossum circuit breakers, and exposes Prometheus metrics scraped from each cluster instance.
