@@ -49,7 +49,11 @@ async function startServer() {
 
     // 2. Initialize PostgreSQL tables/indices (skipping in test env)
     if (process.env.NODE_ENV !== 'test') {
-      await initDb();
+      try {
+        await initDb();
+      } catch (dbErr) {
+        logger.error({ err: dbErr.message }, 'Failed to initialize database schema. App will run in degraded mode.');
+      }
     }
 
     // 3. Open HTTP port listener
