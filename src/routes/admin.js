@@ -232,7 +232,11 @@ router.get('/stats', async (req, res) => {
           COALESCE(
             (COUNT(CASE WHEN fallback = false THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)), 
             100.0
-          ) as cache_hit_rate
+          ) as cache_hit_rate,
+          COALESCE(
+            (COUNT(CASE WHEN fallback = true THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)), 
+            0.0
+          ) as error_rate
         FROM audit_logs
       `);
 
@@ -241,6 +245,7 @@ router.get('/stats', async (req, res) => {
         p95 = parseFloat(metricsRes.rows[0].p95 || 0).toFixed(2);
         p99 = parseFloat(metricsRes.rows[0].p99 || 0).toFixed(2);
         cacheHitRate = parseFloat(metricsRes.rows[0].cache_hit_rate || 100).toFixed(2);
+        errorRate = parseFloat(metricsRes.rows[0].error_rate || 0).toFixed(2);
       }
     } catch (err) {
       logger.warn({ err }, 'Failed to fetch live counts and latency metrics from PostgreSQL');
@@ -260,7 +265,8 @@ router.get('/stats', async (req, res) => {
         p50: Number(p50),
         p95: Number(p95),
         p99: Number(p99),
-        cacheHitRate: Number(cacheHitRate)
+        cacheHitRate: Number(cacheHitRate),
+        errorRate: Number(errorRate || 0)
       }
     });
   } catch (err) {

@@ -399,8 +399,8 @@
         <div class="metric-val" id="meta-p50">0.80ms</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">p95 Latency</div>
-        <div class="metric-val" id="meta-p95">1.50ms</div>
+        <div class="metric-label">System Error Rate</div>
+        <div class="metric-val" id="meta-errorrate">0.00%</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">p99 Latency</div>
@@ -1089,7 +1089,7 @@
         // Update live metrics telemetry widgets
         document.getElementById('meta-hitrate').textContent = `${data.db.cacheHitRate.toFixed(2)}%`;
         document.getElementById('meta-p50').textContent = `${data.db.p50.toFixed(2)}ms`;
-        document.getElementById('meta-p95').textContent = `${data.db.p95.toFixed(2)}ms`;
+        document.getElementById('meta-errorrate').textContent = `${data.db.errorRate.toFixed(2)}%`;
         document.getElementById('meta-p99').textContent = `${data.db.p99.toFixed(2)}ms`;
 
         // Update states styles if offline

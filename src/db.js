@@ -59,6 +59,25 @@ async function initDb() {
       ON audit_logs (user_id, timestamp DESC);
     `);
 
+    // Seed PostgreSQL database with sample logs for recruiter demo if empty
+    const countCheck = await client.query('SELECT COUNT(*) FROM audit_logs');
+    const count = parseInt(countCheck.rows[0].count, 10);
+    if (count === 0) {
+      logger.info('Seeding database with sample audit log entries...');
+      const seedQuery = `
+        INSERT INTO audit_logs (user_id, endpoint, timestamp, allowed, limit_quota, remaining, reset_at, fallback, rejection_reason, ip_address, latency_ms, trace_id)
+        VALUES 
+          ('free_user_1', '/api/resource', NOW() - INTERVAL '5 minutes', true, 10, 9, NOW() + INTERVAL '55 seconds', false, null, '192.168.1.5', 0.85, '5a3fd92a-302a-4db3-bc1a-5d63f01abce2'),
+          ('free_user_1', '/api/resource', NOW() - INTERVAL '4 minutes', true, 10, 8, NOW() + INTERVAL '50 seconds', false, null, '192.168.1.5', 0.72, '1d35af1a-200c-4fb6-bfd7-5ea3b0bc8c1b'),
+          ('free_user_1', '/api/resource', NOW() - INTERVAL '3 minutes', true, 10, 0, NOW() + INTERVAL '45 seconds', false, null, '192.168.1.5', 0.90, 'bfd620ac-4b01-447a-af18-e8fa01cb2a01'),
+          ('free_user_1', '/api/resource', NOW() - INTERVAL '2 minutes', false, 10, 0, NOW() + INTERVAL '40 seconds', false, 'RATE_LIMIT_EXCEEDED', '192.168.1.5', 0.95, '7b2c01da-c90a-4bf7-bfd2-1c25a0bc01cb'),
+          ('pro_user_42', '/api/upload', NOW() - INTERVAL '1 minute', true, 100, 99, NOW() + INTERVAL '59 seconds', false, null, '10.0.0.8', 1.25, '1d0a5e8c-8cbf-4c8d-b0bc-1025a07cb2ea'),
+          ('api_client_1', '/api/resource', NOW() - INTERVAL '30 seconds', true, 10, 0, NOW() + INTERVAL '30 seconds', true, null, '172.16.0.4', 0.55, 'fbc20da1-80fc-4c8d-bf8d-d6023ea0fca8')
+      `;
+      await client.query(seedQuery);
+      logger.info('Database seeded successfully.');
+    }
+
     logger.info('PostgreSQL schema initialized successfully');
   } catch (err) {
     if (err.code === '23505' || err.code === '42P07') {
