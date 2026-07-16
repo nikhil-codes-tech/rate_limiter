@@ -9,13 +9,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #090d16;
-      --panel-bg: rgba(30, 41, 59, 0.7);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --primary: #6366f1;
-      --primary-hover: #4f46e5;
+      --bg-dark: #f8fafc;
+      --panel-bg: rgba(255, 255, 255, 0.85);
+      --border-color: rgba(15, 23, 42, 0.08);
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #4f46e5;
+      --primary-hover: #3730a3;
       --success: #10b981;
       --danger: #ef4444;
       --warning: #f59e0b;
@@ -30,8 +30,8 @@
     body {
       font-family: 'Outfit', sans-serif;
       background-color: var(--bg-dark);
-      background-image: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
-                        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 45%);
+      background-image: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.05) 0%, transparent 45%),
+                        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
       color: var(--text-main);
       min-height: 100vh;
       padding: 2rem;
@@ -102,13 +102,13 @@
       border: 1px solid var(--border-color);
       border-radius: 1rem;
       padding: 2rem;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
     }
 
     .card h2 {
       font-size: 1.25rem;
       margin-bottom: 1.5rem;
-      color: #cbd5e1;
+      color: var(--text-main);
       border-left: 4px solid var(--primary);
       padding-left: 0.75rem;
     }
@@ -126,8 +126,8 @@
 
     .form-control {
       width: 100%;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid var(--border-color);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
       border-radius: 0.5rem;
       padding: 0.75rem 1rem;
       color: var(--text-main);
@@ -467,7 +467,7 @@
         }
 
         list.innerHTML = webhooks.map(url => `
-          <li style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 0.5rem; border-radius: 0.25rem; font-size: 0.85rem; font-family: monospace; gap: 0.5rem;">
+          <li style="display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border: 1px solid var(--border-color); padding: 0.5rem; border-radius: 0.25rem; font-size: 0.85rem; font-family: monospace; gap: 0.5rem;">
             <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-grow: 1;" title="${url}">${url}</span>
             <button onclick="removeWebhook('${url}')" style="background: none; border: none; color: var(--danger); font-size: 0.75rem; cursor: pointer; font-weight: 600; padding: 0.25rem;">Remove</button>
           </li>
