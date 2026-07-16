@@ -2,8 +2,13 @@ const { Pool } = require('pg');
 const config = require('./config');
 const logger = require('./logger');
 
+const isLocal = config.db.connectionString.includes('localhost') || 
+                config.db.connectionString.includes('127.0.0.1') || 
+                config.db.connectionString.includes('rate-limiter-db');
+
 const pool = new Pool({
   connectionString: config.db.connectionString,
+  ssl: isLocal ? false : { rejectUnauthorized: false }
 });
 
 pool.on('error', (err) => {
