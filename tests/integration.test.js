@@ -59,7 +59,9 @@ describe('Express Pipeline & Admin Integration Tests', () => {
         allowed: true,
         remaining: 9,
         limit: 10,
-        reset_at: 2000
+        reset_at: 2000,
+        algorithm: 'sliding',
+        trace_id: expect.any(String)
       });
       expect(res.headers['ratelimit-limit']).toBe('10');
       expect(res.headers['ratelimit-remaining']).toBe('9');
@@ -80,7 +82,9 @@ describe('Express Pipeline & Admin Integration Tests', () => {
         remaining: 0,
         limit: 10,
         reset_at: 1050,
-        retry_after: 1
+        retry_after: 1,
+        algorithm: 'sliding',
+        trace_id: expect.any(String)
       });
       expect(res.headers['ratelimit-limit']).toBe('10');
       expect(res.headers['ratelimit-remaining']).toBe('0');

@@ -71,8 +71,24 @@ router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
   const hrStart = process.hrtime();
   
   const apiKey = req.headers['x-api-key'];
+  const traceId = req.headers['x-trace-id'] || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+  const algo = req.headers['x-rate-limiter-algo'] || 'sliding';
   const { user_id: bodyUserId, endpoint, timestamp } = req.body;
-  const now = timestamp ? Number(timestamp) : Date.now();
+  
+  let now = timestamp ? Number(timestamp) : Date.now();
+
+  // Chaos Hook: Force clock skew
+  if (req.headers['x-chaos-clock-skew'] === 'true') {
+    now = Date.now() + 10000;
+  }
+
+  // Clock Skew Verification
+  if (now - Date.now() > 5000) {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: 'Clock Skew Detected: request timestamp is too far in the future (>5s)'
+    });
+  }
 
   let activeUserId;
   let tier;
@@ -149,13 +165,26 @@ router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
   }
 
   try {
-    // 3. Query the rate limiting state engine (with circuit breaker)
-    const result = await isRateLimited(activeUserId, endpoint, rule, now);
+    let result;
+
+    // Chaos Hooks: Simulate Redis failures directly in the gateway layer
+    if (req.headers['x-chaos-redis-timeout'] === 'true') {
+      logger.warn({ activeUserId }, 'Simulating Redis Timeout Chaos Hook');
+      result = { allowed: true, remaining: 0, resetAt: now + rule.windowMs, fallback: true };
+    } else if (req.headers['x-chaos-net-partition'] === 'true') {
+      logger.warn({ activeUserId }, 'Simulating Redis Network Partition Chaos Hook');
+      result = { allowed: true, remaining: 0, resetAt: now + rule.windowMs, fallback: true };
+    } else {
+      // 3. Query the rate limiting state engine (with circuit breaker)
+      result = await isRateLimited(activeUserId, endpoint, rule, now, algo);
+    }
 
     // 4. Set standard response headers
     res.setHeader('RateLimit-Limit', rule.limit);
     res.setHeader('RateLimit-Remaining', result.remaining);
     res.setHeader('RateLimit-Reset', result.resetAt);
+    res.setHeader('X-Trace-ID', traceId);
+    res.setHeader('X-Rate-Limiter-Algo', algo);
 
     // Set Retry-After header in seconds if rate limited
     const retryAfter = result.allowed ? undefined : Math.max(1, Math.ceil((result.resetAt - now) / 1000));
@@ -166,7 +195,12 @@ router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
     // Extract client IP address
     const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-    // 5. Fire-and-forget logging to Postgres Audit Trail
+    // Calculate decision duration
+    const diff = process.hrtime(hrStart);
+    const latencyMs = (diff[0] * 1000) + (diff[1] / 1e6);
+    const durationInSeconds = diff[0] + diff[1] / 1e9;
+
+    // 5. Fire-and-forget logging to Postgres Audit Trail (including latency & trace ID)
     logAudit(
       activeUserId,
       endpoint,
@@ -176,7 +210,9 @@ router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
       result.resetAt,
       !!result.fallback,
       result.allowed ? null : 'RATE_LIMIT_EXCEEDED',
-      ipAddress
+      ipAddress,
+      latencyMs,
+      traceId
     );
 
     // If rate limited, asynchronously dispatch webhooks
@@ -184,10 +220,6 @@ router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
       dispatchWebhookAlerts(activeUserId, endpoint, rule.limit, result.resetAt, now);
     }
 
-    // 6. Calculate decision duration and log metrics to Prometheus
-    const diff = process.hrtime(hrStart);
-    const durationInSeconds = diff[0] + diff[1] / 1e9;
-    
     let statusLabel = 'allowed';
     if (!result.allowed) statusLabel = 'rejected';
     if (result.fallback) statusLabel = 'fallback';
@@ -200,8 +232,14 @@ router.post('/check-limit', validateCheckLimit, async (req, res, next) => {
       allowed: result.allowed,
       remaining: result.remaining,
       limit: rule.limit,
-      reset_at: result.resetAt
+      reset_at: result.resetAt,
+      trace_id: traceId,
+      algorithm: algo
     };
+
+    if (result.fallback) {
+      responsePayload.fallback = true;
+    }
 
     if (!result.allowed) {
       responsePayload.retry_after = retryAfter;

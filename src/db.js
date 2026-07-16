@@ -36,13 +36,21 @@ async function initDb() {
         reset_at TIMESTAMPTZ NOT NULL,
         rejection_reason VARCHAR(255),
         fallback BOOLEAN DEFAULT FALSE,
-        ip_address VARCHAR(45)
+        ip_address VARCHAR(45),
+        latency_ms REAL,
+        trace_id VARCHAR(50)
       );
     `);
 
-    // Ensure ip_address column exists for backward compatibility in pre-existing DBs
+    // Ensure backwards compatibility columns exist
     await client.query(`
       ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45);
+    `);
+    await client.query(`
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS latency_ms REAL;
+    `);
+    await client.query(`
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS trace_id VARCHAR(50);
     `);
 
     // Create index for reporting/analytics queries
@@ -68,10 +76,10 @@ async function initDb() {
  * Log a rate limit check outcome to PostgreSQL.
  * Executes in background asynchronously so it doesn't block the request lifecycle.
  */
-function logAudit(userId, endpoint, allowed, limit, remaining, resetAt, fallback = false, rejectionReason = null, ipAddress = null) {
+function logAudit(userId, endpoint, allowed, limit, remaining, resetAt, fallback = false, rejectionReason = null, ipAddress = null, latencyMs = null, traceId = null) {
   const query = `
-    INSERT INTO audit_logs (user_id, endpoint, timestamp, allowed, limit_quota, remaining, reset_at, fallback, rejection_reason, ip_address)
-    VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9)
+    INSERT INTO audit_logs (user_id, endpoint, timestamp, allowed, limit_quota, remaining, reset_at, fallback, rejection_reason, ip_address, latency_ms, trace_id)
+    VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11)
   `;
   const values = [
     userId,
@@ -82,7 +90,9 @@ function logAudit(userId, endpoint, allowed, limit, remaining, resetAt, fallback
     new Date(resetAt),
     fallback,
     rejectionReason,
-    ipAddress
+    ipAddress,
+    latencyMs,
+    traceId
   ];
 
   // Fire-and-forget query with error handling in callback to avoid blocking the Express request loop

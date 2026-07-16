@@ -1,0 +1,94 @@
+{
+  "info": {
+    "name": "Distributed Rate Limiter Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Check Rate Limit (Sliding Window)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-User-Tier", "value": "free" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"free_user_1\",\n  \"endpoint\": \"/api/resource\",\n  \"timestamp\": 1784189000000\n}"
+        },
+        "url": {
+          "raw": "https://rate-limiter-three.vercel.app/api/v1/check-limit"
+        }
+      }
+    },
+    {
+      "name": "Check Limit with API Key (Hashed on Server)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-API-Key", "value": "free_key_123" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"endpoint\": \"/api/resource\"\n}"
+        },
+        "url": {
+          "raw": "https://rate-limiter-three.vercel.app/api/v1/check-limit"
+        }
+      }
+    },
+    {
+      "name": "Check Rate Limit (Token Bucket)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-API-Key", "value": "pro_key_456" },
+          { "key": "X-Rate-Limiter-Algo", "value": "bucket" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"endpoint\": \"/api/resource\"\n}"
+        },
+        "url": {
+          "raw": "https://rate-limiter-three.vercel.app/api/v1/check-limit"
+        }
+      }
+    },
+    {
+      "name": "Simulate Redis Timeout Chaos Fail-Open",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-API-Key", "value": "free_key_123" },
+          { "key": "X-Chaos-Redis-Timeout", "value": "true" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"endpoint\": \"/api/resource\"\n}"
+        },
+        "url": {
+          "raw": "https://rate-limiter-three.vercel.app/api/v1/check-limit"
+        }
+      }
+    },
+    {
+      "name": "Admin Generate secure API Key",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"api_user_pro\",\n  \"tier\": \"pro\"\n}"
+        },
+        "url": {
+          "raw": "https://rate-limiter-three.vercel.app/admin/api-keys"
+        }
+      }
+    }
+  ]
+}

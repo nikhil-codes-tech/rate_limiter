@@ -91,9 +91,8 @@ router.patch('/user/:id/quota', async (req, res) => {
 router.get('/analytics/rejected-requests', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, user_id, endpoint, timestamp, limit_quota, remaining, reset_at, rejection_reason, fallback
+      `SELECT id, user_id, endpoint, timestamp, limit_quota, remaining, reset_at, rejection_reason, fallback, ip_address, latency_ms, trace_id
        FROM audit_logs
-       WHERE allowed = false
        ORDER BY timestamp DESC
        LIMIT 100`
     );
@@ -184,7 +183,7 @@ router.delete('/webhooks', async (req, res) => {
 
 /**
  * GET /admin/stats
- * Return live counters from Redis and PostgreSQL databases
+ * Return live counters and aggregates from Redis and PostgreSQL databases
  */
 router.get('/stats', async (req, res) => {
   try {
@@ -211,6 +210,10 @@ router.get('/stats', async (req, res) => {
     let dbStatus = 'OFFLINE';
     let totalLogs = 0;
     let totalRejections = 0;
+    let p50 = 0.0;
+    let p95 = 0.0;
+    let p99 = 0.0;
+    let cacheHitRate = 100.0;
 
     try {
       const countRes = await pool.query('SELECT COUNT(*) FROM audit_logs');
@@ -219,8 +222,28 @@ router.get('/stats', async (req, res) => {
 
       const rejectionsRes = await pool.query('SELECT COUNT(*) FROM audit_logs WHERE allowed = false');
       totalRejections = parseInt(rejectionsRes.rows[0].count, 10);
+
+      // Perform PostgreSQL mathematical aggregates for percentiles and hit rate
+      const metricsRes = await pool.query(`
+        SELECT 
+          COALESCE(percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms), 0) as p50,
+          COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms), 0) as p95,
+          COALESCE(percentile_cont(0.99) WITHIN GROUP (ORDER BY latency_ms), 0) as p99,
+          COALESCE(
+            (COUNT(CASE WHEN fallback = false THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)), 
+            100.0
+          ) as cache_hit_rate
+        FROM audit_logs
+      `);
+
+      if (metricsRes.rows.length > 0) {
+        p50 = parseFloat(metricsRes.rows[0].p50 || 0).toFixed(2);
+        p95 = parseFloat(metricsRes.rows[0].p95 || 0).toFixed(2);
+        p99 = parseFloat(metricsRes.rows[0].p99 || 0).toFixed(2);
+        cacheHitRate = parseFloat(metricsRes.rows[0].cache_hit_rate || 100).toFixed(2);
+      }
     } catch (err) {
-      logger.warn({ err }, 'Failed to fetch live counts from PostgreSQL');
+      logger.warn({ err }, 'Failed to fetch live counts and latency metrics from PostgreSQL');
     }
 
     return res.json({
@@ -233,7 +256,11 @@ router.get('/stats', async (req, res) => {
       db: {
         status: dbStatus,
         totalLogs,
-        totalRejections
+        totalRejections,
+        p50: Number(p50),
+        p95: Number(p95),
+        p99: Number(p99),
+        cacheHitRate: Number(cacheHitRate)
       }
     });
   } catch (err) {
