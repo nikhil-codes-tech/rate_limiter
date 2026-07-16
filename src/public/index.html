@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rate Limiter Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --panel-bg: rgba(30, 41, 59, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 45%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 50%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .system-status {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .status-dot.offline {
+      background-color: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: #cbd5e1;
+      border-left: 4px solid var(--primary);
+      padding-left: 0.75rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+
+    .btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+    }
+
+    .btn-danger:hover {
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 1rem;
+      border-bottom: 2px solid var(--border-color);
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.95rem;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge-error {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .badge-fallback {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fde047;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    /* Notification popup styling */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: #1e293b;
+      border-left: 4px solid var(--success);
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transform: translateY(150%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Rate Limiter Admin</h1>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem;">Distributed API Quota & Failure Control</p>
+      </div>
+      <div class="system-status">
+        <div class="status-badge">
+          <div class="status-dot" id="redis-dot"></div>
+          <span>Redis State: <b style="color: var(--success);" id="redis-state">ONLINE</b></span>
+        </div>
+        <div class="status-badge">
+          <div class="status-dot" id="db-dot"></div>
+          <span>Audit DB: <b style="color: var(--success);" id="db-state">ONLINE</b></span>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Card 1: Custom Quota Override -->
+      <div class="card">
+        <h2>Adjust User Quota</h2>
+        <form id="quota-form">
+          <div class="form-group">
+            <label for="quota-userid">User ID</label>
+            <input type="text" id="quota-userid" class="form-control" placeholder="e.g. user_12345" required>
+          </div>
+          <div class="form-group">
+            <label for="quota-limit">Limit (Requests)</label>
+            <input type="number" id="quota-limit" class="form-control" placeholder="e.g. 500" required>
+          </div>
+          <div class="form-group">
+            <label for="quota-window">Window (Milliseconds)</label>
+            <input type="number" id="quota-window" class="form-control" value="60000" placeholder="e.g. 60000" required>
+          </div>
+          <button type="submit" class="btn">Apply Quota Override</button>
+        </form>
+      </div>
+
+      <!-- Card 2: Force Reset -->
+      <div class="card">
+        <h2>Force Quota Reset</h2>
+        <form id="reset-form" style="display: flex; flex-direction: column; justify-content: space-between; height: calc(100% - 2.5rem);">
+          <div class="form-group">
+            <label for="reset-userid">User ID to Reset</label>
+            <input type="text" id="reset-userid" class="form-control" placeholder="e.g. user_12345" required>
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.5rem; line-height: 1.4;">
+              This clears all active sorted set records and reset periods for the user in the Redis cache. The user will start fresh with their default tier limit.
+            </p>
+          </div>
+          <button type="submit" class="btn btn-danger">Flush Cache State</button>
+        </form>
+      </div>
+
+      <!-- Card 3: Webhooks Manager -->
+      <div class="card">
+        <h2>Webhook Alerts Manager</h2>
+        <form id="webhook-form" style="margin-bottom: 1.25rem;">
+          <div class="form-group" style="margin-bottom: 0.75rem;">
+            <label for="webhook-url">Receiver Endpoint URL</label>
+            <input type="url" id="webhook-url" class="form-control" placeholder="e.g. https://api.slack.com/..." required>
+          </div>
+          <button type="submit" class="btn">Register Webhook</button>
+        </form>
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+          <label style="display: block; font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.75rem;">Active Webhooks</label>
+          <ul id="webhooks-list" style="list-style: none; display: flex; flex-direction: column; gap: 0.5rem; max-height: 120px; overflow-y: auto; padding-right: 0.25rem;">
+            <li style="color: var(--text-muted); font-size: 0.875rem;">Loading webhooks...</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Live Rejections Log -->
+    <div class="card" style="margin-bottom: 0;">
+      <h2>Live Rejected Requests Analytics</h2>
+      <div class="table-container" style="margin-top: 1.5rem;">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>User ID</th>
+              <th>Endpoint</th>
+              <th>Limit Quota</th>
+              <th>Reason</th>
+              <th>Fallback</th>
+            </tr>
+          </thead>
+          <tbody id="logs-table-body">
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading logs...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <div class="status-dot"></div>
+    <span id="toast-text">Success message</span>
+  </div>
+
+  <script>
+    // Notifications system
+    function showToast(text, isError = false) {
+      const toast = document.getElementById('toast');
+      const textSpan = document.getElementById('toast-text');
+      textSpan.textContent = text;
+      
+      if (isError) {
+        toast.style.borderLeftColor = 'var(--danger)';
+        toast.querySelector('.status-dot').style.backgroundColor = 'var(--danger)';
+        toast.querySelector('.status-dot').style.boxShadow = '0 0 8px var(--danger)';
+      } else {
+        toast.style.borderLeftColor = 'var(--success)';
+        toast.querySelector('.status-dot').style.backgroundColor = 'var(--success)';
+        toast.querySelector('.status-dot').style.boxShadow = '0 0 8px var(--success)';
+      }
+      
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Load recent rejected logs
+    async function loadRejectedLogs() {
+      try {
+        const res = await fetch('/admin/analytics/rejected-requests');
+        if (!res.ok) throw new Error('Failed to fetch analytics');
+        const logs = await res.json();
+        
+        const tbody = document.getElementById('logs-table-body');
+        if (logs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No rate limit rejections registered. System healthy.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = logs.map(log => {
+          const date = new Date(log.timestamp).toLocaleString();
+          return `
+            <tr>
+              <td>${date}</td>
+              <td style="font-family: monospace; font-weight: 600;">${log.user_id}</td>
+              <td style="font-family: monospace;">${log.endpoint}</td>
+              <td>${log.limit_quota}</td>
+              <td><span class="badge-error">${log.rejection_reason || 'EXCEEDED'}</span></td>
+              <td>
+                ${log.fallback 
+                  ? '<span class="badge-fallback">YES (Degraded Mode)</span>' 
+                  : '<span style="color: var(--text-muted);">No</span>'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Quota Form Submission
+    document.getElementById('quota-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userId = document.getElementById('quota-userid').value;
+      const limit = parseInt(document.getElementById('quota-limit').value);
+      const windowMs = parseInt(document.getElementById('quota-window').value);
+
+      try {
+        const res = await fetch(`/admin/user/${userId}/quota`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit, windowMs })
+        });
+        
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+        showToast(data.message);
+        document.getElementById('quota-form').reset();
+      } catch (err) {
+        showToast('Failed to apply quota override.', true);
+      }
+    });
+
+    // Reset Form Submission
+    document.getElementById('reset-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userId = document.getElementById('reset-userid').value;
+
+      try {
+        const res = await fetch(`/admin/user/${userId}/quota-reset`, {
+          method: 'DELETE'
+        });
+        
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+        showToast(data.message);
+        document.getElementById('reset-form').reset();
+      } catch (err) {
+        showToast('Failed to reset user cache state.', true);
+      }
+    });
+
+    // Load active Webhooks
+    async function loadWebhooks() {
+      try {
+        const res = await fetch('/admin/webhooks');
+        if (!res.ok) throw new Error('Failed to fetch webhooks');
+        const webhooks = await res.json();
+        
+        const list = document.getElementById('webhooks-list');
+        if (webhooks.length === 0) {
+          list.innerHTML = `<li style="color: var(--text-muted); font-size: 0.875rem;">No active webhooks registered.</li>`;
+          return;
+        }
+
+        list.innerHTML = webhooks.map(url => `
+          <li style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 0.5rem; border-radius: 0.25rem; font-size: 0.85rem; font-family: monospace; gap: 0.5rem;">
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-grow: 1;" title="${url}">${url}</span>
+            <button onclick="removeWebhook('${url}')" style="background: none; border: none; color: var(--danger); font-size: 0.75rem; cursor: pointer; font-weight: 600; padding: 0.25rem;">Remove</button>
+          </li>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Register Webhook
+    document.getElementById('webhook-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const url = document.getElementById('webhook-url').value;
+
+      try {
+        const res = await fetch('/admin/webhooks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+        showToast(data.message);
+        document.getElementById('webhook-url').value = '';
+        loadWebhooks();
+      } catch (err) {
+        showToast('Failed to register webhook.', true);
+      }
+    });
+
+    // Remove Webhook
+    async function removeWebhook(url) {
+      try {
+        const res = await fetch('/admin/webhooks', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        
+        if (!res.ok) throw new Error('Request failed');
+        const data = await res.json();
+        showToast(data.message);
+        loadWebhooks();
+      } catch (err) {
+        showToast('Failed to unregister webhook.', true);
+      }
+    }
+
+    // Initial load and auto refresh
+    loadRejectedLogs();
+    loadWebhooks();
+    setInterval(loadRejectedLogs, 5000);
+  </script>
+</body>
+</html>
