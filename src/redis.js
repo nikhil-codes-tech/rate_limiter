@@ -14,8 +14,17 @@ try {
   process.exit(1);
 }
 
+let redisUrl = config.redis.url;
+const isLocalRedis = redisUrl.includes('localhost') || 
+                     redisUrl.includes('127.0.0.1') || 
+                     redisUrl.includes('rate-limiter-redis');
+
+if (!isLocalRedis && redisUrl.startsWith('redis://')) {
+  redisUrl = redisUrl.replace('redis://', 'rediss://');
+}
+
 const client = createClient({
-  url: config.redis.url,
+  url: redisUrl,
   scripts: {
     checkLimit: defineScript({
       NUMBER_OF_KEYS: 1,
