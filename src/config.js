@@ -9,7 +9,7 @@ module.exports = {
     maxRetries: parseInt(process.env.REDIS_MAX_RETRIES || '10', 10),
   },
   db: {
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/limiter',
+    connectionString: process.env.DATABASE_URL || process.env.DB_URL || 'postgresql://postgres:postgres@localhost:5432/limiter',
   },
   // Default rules for different tiers
   rules: {
