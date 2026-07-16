@@ -17,6 +17,9 @@ app.use(express.json());
 // Serve static admin dashboard
 app.use('/dashboard', express.static(path.join(__dirname, 'public')));
 
+// Redirect root to dashboard
+app.get('/', (req, res) => res.redirect('/dashboard/index.html'));
+
 // Prometheus metrics endpoint
 app.get('/metrics', async (req, res) => {
   try {
